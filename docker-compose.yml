@@ -1,0 +1,118 @@
+services:
+  oltp-db:
+    image: postgres:15
+    container_name: oltp-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${OLTP_DB}
+    ports:
+      - "5433:5432"
+    volumes:
+      - oltp_data:/var/lib/postgresql/data
+      - ./init/oltp.sql:/docker-entrypoint-initdb.d/10-oltp.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  op-db:
+    image: postgres:15
+    container_name: op-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${OP_DB}
+    ports:
+      - "5434:5432"
+    volumes:
+      - op_data:/var/lib/postgresql/data
+      - ./init/op.sql:/docker-entrypoint-initdb.d/10-op.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    container_name: redis
+    ports:
+      - "6379:6379"
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.3
+    container_name: es
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=${ES_JAVA_OPTS}
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  airflow:
+    image: apache/airflow:2.9.2
+    container_name: airflow
+    environment:
+      _AIRFLOW_WWW_USER_USERNAME: admin
+      _AIRFLOW_WWW_USER_PASSWORD: admin
+      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: sqlite:////opt/airflow/airflow.db
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW_UID: ${AIRFLOW_UID}
+      AIRFLOW__WEBSERVER__BASE_URL: http://localhost:8081
+      AIRFLOW__WEBSERVER__COOKIE_SAMESITE: Lax
+      AIRFLOW__WEBSERVER__COOKIE_SECURE: "False"
+      AIRFLOW__WEBSERVER__SECRET_KEY: changeme_please_use_random
+    command:
+      [
+        "bash",
+        "-lc",
+        "pip install -r /opt/airflow/requirements.txt && airflow standalone",
+      ]
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/requirements.txt:/opt/airflow/requirements.txt
+      - ./data:/opt/airflow/data
+    depends_on:
+      oltp-db:
+        condition: service_healthy
+      op-db:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: api
+    environment:
+      PYTHONPATH: /app
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@op-db:5432/${OP_DB}
+      OLTP_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@oltp-db:5432/${OLTP_DB}
+      REDIS_URL: redis://redis:6379/0
+      ELASTIC_URL: http://es:9200
+    depends_on:
+      - op-db
+      - redis
+      - elasticsearch
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./api:/app/api
+
+volumes:
+  oltp_data:
+  op_data:
+  es_data:

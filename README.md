@@ -1,230 +1,128 @@
-# 🛒 Olist Recommendation API
+# PoC Recomendação On-Prem
 
-Uma API REST moderna para sistema de recomendações de produtos do e-commerce Olist, construída com FastAPI e algoritmos de machine learning.
+Stack Docker com Postgres (OLTP e Operacional), Redis, Elasticsearch, Airflow e API FastAPI.
 
-## 🎯 Visão Geral
+## Requisitos
 
-A Olist Recommendation API fornece recomendações personalizadas de produtos baseadas em diferentes estratégias de filtragem, incluindo filtragem colaborativa, baseada em conteúdo e híbrida. A API utiliza dados reais do marketplace brasileiro Olist para gerar recomendações inteligentes.
+- Docker + Docker Compose
+- 4 GB RAM livres (Elasticsearch recomenda 2+ GB)
 
-### Principais Características
+## Configuração
 
-- ⚡ **Alta Performance**: Construída com FastAPI e processamento assíncrono
-- 🤖 **Múltiplos Algoritmos**: Filtragem colaborativa, baseada em conteúdo e híbrida
-- 🗄️ **Integração com SQL Server**: Armazenamento e consulta otimizada de dados
-- 📊 **Analytics em Tempo Real**: Métricas de performance e uso da API
-- 🔒 **Segurança**: Autenticação JWT e validação de dados
-- 📚 **Documentação Automática**: Swagger/OpenAPI integrado
+1. Crie um arquivo `.env` na raiz do projeto (ajuste conforme necessário):
 
-## ✨ Funcionalidades
-
-### Tipos de Recomendação
-
-1. **Recomendação por Popularidade**: Produtos mais vendidos globalmente ou por região
-2. **Filtragem Colaborativa**: Baseada no comportamento de usuários similares
-3. **Filtragem por Conteúdo**: Baseada em características dos produtos
-4. **Recomendação Híbrida**: Combinação de múltiplas estratégias
-5. **Recomendação Sazonal**: Produtos populares em épocas específicas
-6. **Produtos Relacionados**: Itens frequentemente comprados juntos
-
-### Recursos Adicionais
-
-- Recomendações por estado/região
-- Produtos melhor avaliados
-- Análise de sentimento de reviews
-- Cache inteligente para performance
-- Rate limiting para controle de uso
-- Logs estruturados para monitoramento
-
-## 🛠️ Tecnologias
-
-- **Framework**: FastAPI 0.104+
-- **Banco de Dados**: SQL Server com SQLAlchemy
-- **Machine Learning**: Scikit-learn, NumPy, SciPy
-- **Processamento de Dados**: Pandas
-- **Autenticação**: JWT com python-jose
-- **Documentação**: Swagger/OpenAPI
-- **Testes**: Pytest
-- **Qualidade de Código**: Black, Flake8, MyPy
-
-## 🚀 Instalação
-
-### Pré-requisitos
-
-- Python 3.8+
-- SQL Server 2019+ ou SQL Server Express
-- ODBC Driver 17 for SQL Server
-
-### Instalação Local
-
-1. **Clone o repositório:**
-
-```bash
-[git clone https://github.com/larissamagistrali/algoritmos-recomendacao.git](https://github.com/larissamagistrali/api-recomendacao-e-commerce.git)
 ```
-
-2. **Instale as dependências:**
-
-```bash
-pip install -r requirements.txt
-```
-
-3. **Configure o banco de dados:**
-
-```bash
-python3 -c "from db_service import DatabaseService; db = DatabaseService(); print('Database service initialized successfully')"
-```
-
-## ⚙️ Configuração
-
-### Variáveis de Ambiente
-
-Crie um arquivo `.env`
-
-```env
-# Database
-SQL_SERVER=localhost
-SQL_DATABASE=OlistRecommendations
-SQL_TRUSTED_CONNECTION=True
-
-# API
-API_HOST=127.0.0.1
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+OLTP_DB=oltpdb
+OP_DB=opdb
+ES_JAVA_OPTS=-Xms512m -Xmx512m
+AIRFLOW_UID=50000
 API_PORT=8000
-SECRET_KEY=your-super-secret-key-here
-
-# ML Models
-MAX_RECOMMENDATIONS=20
-CACHE_TTL=3600
 ```
 
-### Configuração do Banco de Dados
+- Linux: use seu UID local para evitar problemas de permissão no Airflow:
+  - `echo "AIRFLOW_UID=$(id -u)" >> .env`
+- macOS/Windows: manter `AIRFLOW_UID=50000` costuma funcionar.
 
-A API utiliza SQL Server como banco principal. Certifique-se de:
-
-1. Ter o SQL Server instalado e rodando
-2. Criar um banco chamado `OlistRecommendations`
-3. Configurar as credenciais no arquivo `.env`
-
-## 🎮 Uso
-
-### Iniciando o Servidor
-
-```bash
-# Desenvolvimento
-uvicorn main:app --reload --host 127.0.0.1 --port 8000
-
-# Produção
-uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+## Subir a stack
 
 ```
-
-### Acessando a Documentação
-
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-- **OpenAPI Schema**: http://localhost:8000/openapi.json
-
-## 🔗 Endpoints
-
-### Autenticação
-
-```http
-POST /auth/token
-POST /auth/register
+docker compose up -d --build
 ```
 
-### Recomendações
+Serviços e portas padrão:
 
-#### Recomendações por Usuário
+- API: http://localhost:8000
+- Airflow: http://localhost:8081 (admin/admin)
+- Elasticsearch: http://localhost:9200
+- Postgres OLTP: localhost:5433
+- Postgres Operacional: localhost:5434
+- Redis: localhost:6379
 
-```http
-GET /recommendations/user/{user_id}?limit=10&strategy=collaborative
+Se alguma porta estiver em uso, ajuste `docker-compose.yml` ou variáveis no `.env`.
+
+## Fluxo de dados
+
+- `init/oltp.sql` carrega eventos de exemplo em `oltp-db`.
+- A DAG `recom_batch` (Airflow) lê os eventos via DuckDB, computa scores, grava em `op-db.public.item_scores` e indexa no Elasticsearch (`item_scores`).
+
+## Operações comuns
+
+- Verificar saúde da API:
+
+```
+curl -s http://localhost:8000/health
 ```
 
-#### Produtos Populares
+- Recomendações de produtos similares:
 
-```http
-GET /recommendations/popular?limit=10&state=SP
+```
+curl -s "http://localhost:8000/recommend/similar/{product_id}?limit=5"
 ```
 
-#### Produtos Relacionados
+Substitua `{product_id}` pelo ID do produto desejado.
 
-```http
-GET /recommendations/related/{product_id}?limit=5
+- Airflow UI: `http://localhost:8081` (user: admin, pass: admin)
+- Ver a senha gerada automaticamente pelo `airflow standalone` (dentro do contêiner):
+
+```
+docker compose exec airflow bash -lc "cat $AIRFLOW_HOME/standalone_admin_password.txt"
 ```
 
-#### Recomendações Sazonais
+- Acionar manualmente a DAG pelo CLI (opcional):
 
-```http
-GET /recommendations/seasonal?month=12&limit=10
+```
+docker compose exec airflow bash -lc "airflow dags trigger recom_batch"
 ```
 
-#### Produtos Melhor Avaliados
+## Estrutura dos diretórios
 
-```http
-GET /recommendations/top-rated?min_reviews=10&limit=10
+```
+api/
+  Dockerfile
+  main.py
+  requirements.txt
+airflow/
+  dags/
+    recom_batch.py
+  requirements.txt
+  __pycache__/
+init/
+  oltp.sql
+  op.sql
+data/
+  olist_customers_dataset.csv
+  olist_geolocation_dataset.csv
+  olist_order_items_dataset.csv
+  olist_order_payments_dataset.csv
+  olist_order_reviews_dataset.csv
+  olist_orders_dataset.csv
+  olist_products_dataset.csv
+  olist_sellers_dataset.csv
 ```
 
-### Analytics
+## macOS (Apple Silicon)
 
-```http
-GET /analytics/metrics
-GET /analytics/popular-categories
-GET /analytics/user-behavior/{user_id}
+- As imagens são multi-arch. Se o Elasticsearch reclamar de arquitetura, adicione em `docker-compose.yml` no serviço `elasticsearch`:
+
+```
+platform: linux/arm64/v8
 ```
 
-### Exemplo de Uso
+- Ajuste de memória no Docker Desktop pode ser necessário (4+ GB).
 
-```python
-import requests
+## Troubleshooting
 
-# Obter token de autenticação
-auth_response = requests.post("http://localhost:8000/auth/token", {
-    "username": "user@example.com",
-    "password": "password"
-})
-token = auth_response.json()["access_token"]
+- Airflow não sobe: verifique `AIRFLOW_UID` e rode init dentro do contêiner se necessário:
 
-# Headers com autenticação
-headers = {"Authorization": f"Bearer {token}"}
-
-# Obter recomendações para um usuário
-response = requests.get(
-    "http://localhost:8000/recommendations/user/123?limit=5&strategy=hybrid",
-    headers=headers
-)
-
-recommendations = response.json()
-print(recommendations)
+```
+docker compose exec airflow bash -lc "airflow db init && airflow users create --username admin --firstname a --lastname b --role Admin --email admin@example.com --password admin || true && airflow webserver -D && airflow scheduler -D"
 ```
 
-## 🧠 Algoritmos de Recomendação
+- Elasticsearch sem saúde: aguarde alguns segundos, verifique memória e logs: `docker compose logs elasticsearch`.
+- Conflito de portas: altere mapeamentos em `docker-compose.yml`.
 
-### 1. Filtragem Colaborativa
+## Licença
 
-- **User-Based**: Recomenda produtos baseado em usuários similares
-- **Item-Based**: Recomenda produtos similares aos já comprados
-- **Matrix Factorization**: SVD para redução de dimensionalidade
-
-### 2. Filtragem por Conteúdo
-
-- Análise de características dos produtos
-- Similaridade baseada em categorias
-- Processamento de texto de descrições
-
-### 3. Algoritmos Híbridos
-
-- Combinação ponderada de múltiplas estratégias
-- Switch híbrido baseado em contexto
-- Meta-learning para seleção de algoritmos
-
-### 4. Recomendações Contextuais
-
-- Sazonalidade (datas especiais, meses)
-- Localização geográfica
-- Tendências de mercado
-
-### Monitoramento
-
-- **Logs estruturados** com Structlog
-- **Métricas de performance** via endpoints `/metrics`
-- **Health checks** via endpoint `/health`
+Uso interno/PoC.
