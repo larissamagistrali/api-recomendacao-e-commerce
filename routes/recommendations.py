@@ -1,192 +1,164 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import Optional, List
+from fastapi import APIRouter, Depends, HTTPException, Query, Header
+from typing import Optional, List, Dict, Any
 import traceback
 
-from schemas.recommendation import RecommendationResponse
-from schemas.user import User
-from app_setup import recommendation_service  # Import da instância global
-from utils.auth import get_current_user
+from services.complementary_service import ComplementaryRecommendationService
 
 router = APIRouter()
 
-@router.get("/user/{user_id}")
-async def get_user_recommendations(
-    user_id: str,
-    current_user: User = Depends(get_current_user),
-    limit: int = Query(10, ge=1, le=100),
-    strategy: str = Query("collaborative", regex="^(collaborative|content|hybrid)$")
-):
-    """
-    Obter recomendações personalizadas para um usuário
-    """
-    print(f"[RECOMMENDATIONS] get_user_recommendations - INÍCIO")
-    print(f"[RECOMMENDATIONS] get_user_recommendations - User ID: {user_id}")
-    print(f"[RECOMMENDATIONS] get_user_recommendations - Current user: {current_user.get('id') if isinstance(current_user, dict) else current_user}")
-    print(f"[RECOMMENDATIONS] get_user_recommendations - Limit: {limit}")
-    print(f"[RECOMMENDATIONS] get_user_recommendations - Strategy: {strategy}")
-    
-    try:
-        recommendations = await recommendation_service.get_user_recommendations(
-            user_id=user_id,
-            limit=limit,
-            strategy=strategy
-        )
-        
-        print(f"[RECOMMENDATIONS] get_user_recommendations - Recomendações obtidas: {len(recommendations)}")
-        
-        return {
-            "user_id": user_id,
-            "strategy": strategy,
-            "recommendations": recommendations,
-            "total": len(recommendations)
-        }
-        
-    except Exception as e:
-        print(f"[RECOMMENDATIONS] get_user_recommendations - ERRO: {str(e)}")
-        print(f"[RECOMMENDATIONS] get_user_recommendations - Tipo do erro: {type(e)}")
-        print(f"[RECOMMENDATIONS] get_user_recommendations - Traceback: {traceback.format_exc()}")
-        
-        raise HTTPException(
-            status_code=500,
-            detail=f"Erro ao obter recomendações: {str(e)}"
-        )
+# Instância global do serviço de produtos complementares
+complementary_service = ComplementaryRecommendationService()
 
-@router.get("/popular")
-async def get_popular_products(
-    limit: int = Query(10, ge=1, le=100),
-    state: Optional[str] = Query(None)
-):
-    """
-    Obter produtos populares
-    """
-    print(f"[RECOMMENDATIONS] get_popular_products - INÍCIO")
-    print(f"[RECOMMENDATIONS] get_popular_products - Limit: {limit}")
-    print(f"[RECOMMENDATIONS] get_popular_products - State: {state}")
-    
-    try:
-        products = await recommendation_service.get_popular_products(
-            limit=limit,
-            state=state
-        )
-        
-        print(f"[RECOMMENDATIONS] get_popular_products - Produtos obtidos: {len(products)}")
-        
-        return {
-            "products": products,
-            "total": len(products),
-            "state": state
-        }
-        
-    except Exception as e:
-        print(f"[RECOMMENDATIONS] get_popular_products - ERRO: {str(e)}")
-        print(f"[RECOMMENDATIONS] get_popular_products - Traceback: {traceback.format_exc()}")
-        
-        raise HTTPException(
-            status_code=500,
-            detail=f"Erro ao obter produtos populares: {str(e)}"
-        )
+@router.on_event("startup")
+async def startup_event():
+    """Inicializa o serviço na startup da aplicação"""
+    await complementary_service.initialize()
 
-@router.get("/related/{product_id}")
-async def get_related_products(
+@router.on_event("shutdown")
+async def shutdown_event():
+    """Fecha conexões na shutdown da aplicação"""
+    await complementary_service.close()
+
+@router.get("/complementary/{product_id}")
+async def get_complementary_products(
     product_id: str,
-    limit: int = Query(5, ge=1, le=50)
+    context_type: str = Query("PDP", regex="^(PDP|CART)$"),
+    user_id: Optional[str] = Query(None),
+    session_id: Optional[str] = Header(None, alias="X-Session-ID"),
+    limit: int = Query(10, ge=1, le=50),
+    min_stock: Optional[int] = Query(1, ge=0),
+    category: Optional[str] = Query(None),
+    min_price: Optional[float] = Query(None, ge=0),
+    max_price: Optional[float] = Query(None, ge=0),
+    min_rating: Optional[float] = Query(None, ge=0, le=5)
 ):
     """
-    Obter produtos relacionados
+    Obter produtos complementares ("Comprados Juntos") para um produto
+    
+    Args:
+        product_id: ID do produto base
+        context_type: Contexto da recomendação (PDP = Página do Produto, CART = Carrinho)
+        user_id: ID do usuário (opcional)
+        session_id: ID da sessão do usuário (header X-Session-ID)
+        limit: Número máximo de produtos a retornar
+        min_stock: Estoque mínimo necessário
+        category: Filtrar por categoria específica
+        min_price: Preço mínimo
+        max_price: Preço máximo
+        min_rating: Avaliação mínima
     """
-    print(f"[RECOMMENDATIONS] get_related_products - INÍCIO")
-    print(f"[RECOMMENDATIONS] get_related_products - Product ID: {product_id}")
-    print(f"[RECOMMENDATIONS] get_related_products - Limit: {limit}")
+    print(f"[COMPLEMENTARY_API] Buscando produtos complementares para {product_id}")
     
     try:
-        products = await recommendation_service.get_related_products(
+        # Construir filtros
+        filters = {}
+        if min_stock is not None:
+            filters['min_stock'] = min_stock
+        if category:
+            filters['category'] = category
+        if min_price is not None:
+            filters['min_price'] = min_price
+        if max_price is not None:
+            filters['max_price'] = max_price
+        if min_rating is not None:
+            filters['min_rating'] = min_rating
+        
+        # Buscar produtos complementares
+        result = await complementary_service.get_complementary_products(
             product_id=product_id,
+            context_type=context_type,
+            user_id=user_id,
+            session_id=session_id,
+            filters=filters,
             limit=limit
         )
         
-        print(f"[RECOMMENDATIONS] get_related_products - Produtos obtidos: {len(products)}")
+        print(f"[COMPLEMENTARY_API] Retornando {result['total']} recomendações")
+        
+        return result
+        
+    except Exception as e:
+        print(f"[COMPLEMENTARY_API] Erro: {str(e)}")
+        print(f"[COMPLEMENTARY_API] Traceback: {traceback.format_exc()}")
+        
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao buscar produtos complementares: {str(e)}"
+        )
+
+@router.post("/outcome/{rec_set_id}")
+async def log_recommendation_outcome(
+    rec_set_id: int,
+    product_id: str,
+    outcome_type: str = Query(..., regex="^(view|add_to_cart|purchase)$"),
+    outcome_value: Optional[float] = Query(None, ge=0)
+):
+    """
+    Registra o resultado de uma recomendação (conversão)
+    
+    Args:
+        rec_set_id: ID do conjunto de recomendações
+        product_id: ID do produto que teve interação
+        outcome_type: Tipo de resultado (view, add_to_cart, purchase)
+        outcome_value: Valor monetário da conversão (para purchases)
+    """
+    try:
+        await complementary_service.log_recommendation_outcome(
+            rec_set_id=rec_set_id,
+            product_id=product_id,
+            outcome_type=outcome_type,
+            outcome_value=outcome_value
+        )
         
         return {
+            "status": "success",
+            "rec_set_id": rec_set_id,
             "product_id": product_id,
-            "related_products": products,
-            "total": len(products)
+            "outcome_type": outcome_type,
+            "outcome_value": outcome_value
         }
         
     except Exception as e:
-        print(f"[RECOMMENDATIONS] get_related_products - ERRO: {str(e)}")
-        print(f"[RECOMMENDATIONS] get_related_products - Traceback: {traceback.format_exc()}")
-        
+        print(f"[COMPLEMENTARY_API] Erro ao logar outcome: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail=f"Erro ao obter produtos relacionados: {str(e)}"
+            detail=f"Erro ao registrar resultado: {str(e)}"
         )
 
-@router.get("/seasonal")
-async def get_seasonal_recommendations(
-    month: int = Query(..., ge=1, le=12),
-    limit: int = Query(10, ge=1, le=100)
+@router.get("/analytics")
+async def get_recommendation_analytics(
+    days_back: int = Query(7, ge=1, le=90)
 ):
     """
-    Obter recomendações sazonais
+    Obter analytics de performance das recomendações
     """
-    print(f"[RECOMMENDATIONS] get_seasonal_recommendations - INÍCIO")
-    print(f"[RECOMMENDATIONS] get_seasonal_recommendations - Month: {month}")
-    print(f"[RECOMMENDATIONS] get_seasonal_recommendations - Limit: {limit}")
-    
     try:
-        products = await recommendation_service.get_seasonal_recommendations(
-            month=month,
-            limit=limit
-        )
-        
-        print(f"[RECOMMENDATIONS] get_seasonal_recommendations - Produtos obtidos: {len(products)}")
+        analytics = await complementary_service.get_recommendation_analytics(days_back)
         
         return {
-            "month": month,
-            "seasonal_products": products,
-            "total": len(products)
+            "period_days": days_back,
+            "analytics": analytics
         }
         
     except Exception as e:
-        print(f"[RECOMMENDATIONS] get_seasonal_recommendations - ERRO: {str(e)}")
-        print(f"[RECOMMENDATIONS] get_seasonal_recommendations - Traceback: {traceback.format_exc()}")
-        
+        print(f"[COMPLEMENTARY_API] Erro ao buscar analytics: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail=f"Erro ao obter recomendações sazonais: {str(e)}"
+            detail=f"Erro ao buscar analytics: {str(e)}"
         )
 
-@router.get("/top-rated")
-async def get_top_rated_products(
-    min_reviews: int = Query(10, ge=1),
-    limit: int = Query(10, ge=1, le=100)
-):
+@router.get("/health")
+async def get_service_health():
     """
-    Obter produtos mais bem avaliados
+    Verifica a saúde dos serviços
     """
-    print(f"[RECOMMENDATIONS] get_top_rated_products - INÍCIO")
-    print(f"[RECOMMENDATIONS] get_top_rated_products - Min reviews: {min_reviews}")
-    print(f"[RECOMMENDATIONS] get_top_rated_products - Limit: {limit}")
-    
     try:
-        products = await recommendation_service.get_top_rated_products(
-            min_reviews=min_reviews,
-            limit=limit
-        )
-        
-        print(f"[RECOMMENDATIONS] get_top_rated_products - Produtos obtidos: {len(products)}")
-        
-        return {
-            "min_reviews": min_reviews,
-            "top_rated_products": products,
-            "total": len(products)
-        }
+        health = complementary_service.get_service_health()
+        return health
         
     except Exception as e:
-        print(f"[RECOMMENDATIONS] get_top_rated_products - ERRO: {str(e)}")
-        print(f"[RECOMMENDATIONS] get_top_rated_products - Traceback: {traceback.format_exc()}")
-        
-        raise HTTPException(
-            status_code=500,
-            detail=f"Erro ao obter produtos mais bem avaliados: {str(e)}"
-        )
+        return {
+            "error": str(e),
+            "overall": False,
+            "timestamp": None
+        }

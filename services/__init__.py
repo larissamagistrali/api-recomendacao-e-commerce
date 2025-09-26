@@ -8,24 +8,19 @@ if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
 # Agora podemos importar usando caminhos absolutos
-from services.auth_service import AuthService
-from services.recommendation_service import RecommendationService
 from services.analytics_service import AnalyticsService
 from db_service import DatabaseService
 from config import config
 
 # Instâncias globais dos serviços (singleton pattern)
-print(f"[SERVICES] __init__ - Inicializando serviços...")
-print(f"[SERVICES] __init__ - Modo de desenvolvimento: {config.DEVELOPMENT_MODE}")
+print("[SERVICES] __init__ - Inicializando serviços...")
 
 # Criar instância do banco de dados
 db_service = DatabaseService()
 
 # Criar serviços
-auth_service = AuthService()
-recommendation_service = RecommendationService(db_service)
 analytics_service = AnalyticsService(db_service)
 
-print(f"[SERVICES] __init__ - Serviços inicializados com sucesso")
+print("[SERVICES] __init__ - Serviços inicializados com sucesso")
 
-__all__ = ['auth_service', 'recommendation_service', 'analytics_service', 'db_service']
+__all__ = ['analytics_service', 'db_service']

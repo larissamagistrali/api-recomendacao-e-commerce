@@ -25,10 +25,32 @@ DEFAULT_DB_CONFIG = DatabaseConfig(
 class Config:
     """Configurações da aplicação"""
     
-    # Modo de desenvolvimento (usa CSV em vez de SQL Server)
+    # Modo de desenvolvimento (usa CSV em vez de bancos externos)
     DEVELOPMENT_MODE = os.getenv("DEVELOPMENT_MODE", "true").lower() == "true"
     
-    # Configurações do banco de dados (para produção)
+    # Configurações PostgreSQL
+    POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
+    POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", "5432"))
+    POSTGRES_DATABASE = os.getenv("POSTGRES_DATABASE", "olist_recommendations")
+    POSTGRES_USERNAME = os.getenv("POSTGRES_USERNAME", "postgres")
+    POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "password")
+    
+    # Configurações Redis
+    REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+    REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+    REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", None)
+    REDIS_DB = int(os.getenv("REDIS_DB", "0"))
+    REDIS_CACHE_TTL = int(os.getenv("REDIS_CACHE_TTL", "3600"))  # 1 hora
+    
+    # Configurações Elasticsearch
+    ELASTICSEARCH_HOST = os.getenv("ELASTICSEARCH_HOST", "localhost")
+    ELASTICSEARCH_PORT = int(os.getenv("ELASTICSEARCH_PORT", "9200"))
+    ELASTICSEARCH_USERNAME = os.getenv("ELASTICSEARCH_USERNAME", None)
+    ELASTICSEARCH_PASSWORD = os.getenv("ELASTICSEARCH_PASSWORD", None)
+    ELASTICSEARCH_USE_SSL = os.getenv("ELASTICSEARCH_USE_SSL", "false").lower() == "true"
+    ELASTICSEARCH_INDEX_PRODUCTS = "products"
+    
+    # Configurações do banco de dados (para compatibilidade com código legado)
     DB_SERVER = os.getenv("DB_SERVER", "localhost")
     DB_DATABASE = os.getenv("DB_DATABASE", "olist_db")
     DB_USERNAME = os.getenv("DB_USERNAME", "sa")
@@ -41,12 +63,25 @@ class Config:
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES = 30
     
     # Configurações da API
-    API_TITLE = "Olist Recommendation API"
-    API_VERSION = "1.0.0"
-    API_DESCRIPTION = "API de recomendações para e-commerce Olist"
+    API_TITLE = "Olist Complementary Products API"
+    API_VERSION = "2.0.0"
+    API_DESCRIPTION = "API de produtos complementares e recomendações para e-commerce Olist"
     
     # Configurações de cache
     CACHE_TTL = 3600  # 1 hora
+    
+    # Configurações do sistema de recomendação
+    RECOMMENDATION_DEFAULT_LIMIT = 10
+    RECOMMENDATION_MAX_LIMIT = 50
+    COMPLEMENTARY_PRODUCTS_LIMIT = 50
+    
+    # Configurações de processamento batch
+    BATCH_PROCESSING_MONTHS = 12  # Últimos 12 meses de dados
+    BATCH_MIN_COOCCURRENCE = 5    # Mínimo de coocorrências para considerar
+    
+    # Configurações de rerank
+    RERANK_MARGIN_WEIGHT = 0.3    # Peso da margem de lucro no rerank
+    RERANK_DIVERSITY_PENALTY = 0.2 # Penalidade por falta de diversidade
     
     @property
     def database_url(self):

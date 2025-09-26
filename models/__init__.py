@@ -1,5 +1,3 @@
-from .collaborative import CollaborativeFilteringModel
-from .content_based import ContentBasedModel  
-from .hybrid import HybridModel
+from .cooccurrence import CooccurrenceModel
 
-__all__ = ['CollaborativeFilteringModel', 'ContentBasedModel', 'HybridModel']
+__all__ = ['CooccurrenceModel']

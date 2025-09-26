@@ -3,9 +3,7 @@ from typing import Optional, List
 import traceback
 
 from schemas.analytics import MetricsResponse, CategoryResponse, UserBehaviorResponse
-from schemas.user import User
-from app_setup import analytics_service  # Import da instância global
-from utils.auth import get_current_user
+from app_setup import analytics_service 
 
 router = APIRouter()
 
@@ -14,11 +12,11 @@ async def get_general_metrics():
     """
     Obter métricas gerais da plataforma
     """
-    print(f"[ANALYTICS] get_general_metrics - INÍCIO")
+    print("[ANALYTICS] get_general_metrics - INÍCIO")
     
     try:
         metrics = await analytics_service.get_general_metrics()
-        print(f"[ANALYTICS] get_general_metrics - Métricas obtidas")
+        print("[ANALYTICS] get_general_metrics - Métricas obtidas")
         return metrics
         
     except Exception as e:
@@ -37,7 +35,7 @@ async def get_popular_categories(
     """
     Obter categorias mais populares
     """
-    print(f"[ANALYTICS] get_popular_categories - INÍCIO")
+    print("[ANALYTICS] get_popular_categories - INÍCIO")
     print(f"[ANALYTICS] get_popular_categories - Limit: {limit}")
     
     try:
@@ -67,7 +65,7 @@ async def get_popular_categories_alt(
     """
     Obter categorias mais populares (rota alternativa)
     """
-    print(f"[ANALYTICS] get_popular_categories_alt - INÍCIO")
+    print("[ANALYTICS] get_popular_categories_alt - INÍCIO")
     print(f"[ANALYTICS] get_popular_categories_alt - Limit: {limit}")
     
     try:
@@ -91,20 +89,18 @@ async def get_popular_categories_alt(
 
 @router.get("/user-behavior/{user_id}", response_model=UserBehaviorResponse)
 async def get_user_behavior(
-    user_id: str,
-    current_user: User = Depends(get_current_user)
+    user_id: str
 ):
     """
     Obter comportamento de um usuário específico
     """
-    print(f"[ANALYTICS] get_user_behavior - INÍCIO")
+    print("[ANALYTICS] get_user_behavior - INÍCIO")
     print(f"[ANALYTICS] get_user_behavior - User ID: {user_id}")
-    print(f"[ANALYTICS] get_user_behavior - Current user: {current_user.get('id') if isinstance(current_user, dict) else current_user}")
     
     try:
         behavior = await analytics_service.get_user_behavior(user_id=user_id)
         
-        print(f"[ANALYTICS] get_user_behavior - Comportamento obtido")
+        print("[ANALYTICS] get_user_behavior - Comportamento obtido")
         return behavior
         
     except Exception as e:
@@ -123,7 +119,7 @@ async def get_sales_overview(
     """
     Obter overview de vendas por período
     """
-    print(f"[ANALYTICS] get_sales_overview - INÍCIO")
+    print("[ANALYTICS] get_sales_overview - INÍCIO")
     print(f"[ANALYTICS] get_sales_overview - Period: {period}")
     
     try:
@@ -141,7 +137,7 @@ async def get_sales_overview(
             ]
         }
         
-        print(f"[ANALYTICS] get_sales_overview - Overview gerado")
+        print("[ANALYTICS] get_sales_overview - Overview gerado")
         return overview
         
     except Exception as e:
@@ -161,7 +157,7 @@ async def get_trends(
     """
     Obter tendências de vendas
     """
-    print(f"[ANALYTICS] get_trends - INÍCIO")
+    print("[ANALYTICS] get_trends - INÍCIO")
     print(f"[ANALYTICS] get_trends - Category: {category}, Period: {period}")
     
     try:
@@ -182,7 +178,7 @@ async def get_trends(
             ]
         }
         
-        print(f"[ANALYTICS] get_trends - Tendências geradas")
+        print("[ANALYTICS] get_trends - Tendências geradas")
         return trends
         
     except Exception as e:

@@ -1,5 +1,4 @@
 import pandas as pd
-import os
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 
@@ -8,7 +7,7 @@ class DatabaseService:
     
     def __init__(self):
         """Inicializa o serviço carregando os dados dos CSVs"""
-        print(f"[DB_SERVICE] __init__ - Inicializando DatabaseService")
+        print("[DB_SERVICE] __init__ - Inicializando DatabaseService")
         
         # Caminho para os arquivos CSV
         self.data_path = Path(__file__).parent / "ds"
@@ -21,12 +20,12 @@ class DatabaseService:
         
         # Carregar os datasets
         self._load_datasets()
-        print(f"[DB_SERVICE] __init__ - DatabaseService inicializado com sucesso")
+        print("[DB_SERVICE] __init__ - DatabaseService inicializado com sucesso")
     
     def _load_datasets(self):
         """Carrega todos os datasets necessários"""
         try:
-            print(f"[DB_SERVICE] _load_datasets - Carregando datasets...")
+            print("[DB_SERVICE] _load_datasets - Carregando datasets...")
             
             # Carregar datasets principais
             self.orders = pd.read_csv(self.data_path / "olist_orders_dataset.csv")
@@ -44,7 +43,7 @@ class DatabaseService:
             else:
                 self.category_translation = None
             
-            print(f"[DB_SERVICE] _load_datasets - Datasets carregados:")
+            print("[DB_SERVICE] _load_datasets - Datasets carregados:")
             print(f"  - Orders: {len(self.orders)} registros")
             print(f"  - Order Items: {len(self.order_items)} registros")
             print(f"  - Products: {len(self.products)} registros")

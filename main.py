@@ -5,10 +5,10 @@ import uvicorn
 import os
 
 # Importar configuração dos serviços
-from app_setup import auth_service, recommendation_service, analytics_service
+from app_setup import analytics_service
 
 # Importar as rotas
-from routes import auth, recommendations, analytics
+from routes import recommendations, analytics
 
 # Configuração da aplicação
 app = FastAPI(
@@ -29,7 +29,6 @@ app.add_middleware(
 )
 
 # Incluir as rotas
-app.include_router(auth.router, prefix="/auth", tags=["authentication"])
 app.include_router(recommendations.router, prefix="/recommendations", tags=["recommendations"])
 app.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
 
@@ -65,23 +64,13 @@ async def root():
             </div>
             
             <div class="endpoint">
-                <h3><span class="method post">POST</span> /auth/register</h3>
-                <p>Registrar novo usuário</p>
+                <h3><span class="method get">GET</span> /recommendations/complementary/{product_id}</h3>
+                <p>Obter produtos complementares para um produto</p>
             </div>
             
             <div class="endpoint">
-                <h3><span class="method post">POST</span> /auth/token</h3>
-                <p>Login e obtenção de token JWT</p>
-            </div>
-            
-            <div class="endpoint">
-                <h3><span class="method get">GET</span> /recommendations/user/{user_id}</h3>
-                <p>Obter recomendações personalizadas para um usuário</p>
-            </div>
-            
-            <div class="endpoint">
-                <h3><span class="method get">GET</span> /recommendations/popular</h3>
-                <p>Obter produtos populares</p>
+                <h3><span class="method get">GET</span> /recommendations/health</h3>
+                <p>Status de saúde da API</p>
             </div>
             
             <div class="endpoint">
