@@ -22,7 +22,6 @@ Sistema de recomendação pronto para produção utilizando filtragem colaborati
 - [Configuração](#-configuração)
 - [Monitoramento](#-monitoramento)
 - [Solução de Problemas](#-solução-de-problemas)
-- [Contato](#-contato)
 
 ---
 
